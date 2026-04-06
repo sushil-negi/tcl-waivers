@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
-
-const DB_PATH = path.join(process.cwd(), "data", "waivers.db");
+import { sql } from "@vercel/postgres";
 
 function checkAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -21,20 +18,17 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const db = new Database(DB_PATH);
 
-    const waiver = db.prepare("SELECT * FROM waivers WHERE id = ?").get(id);
-    if (!waiver) {
-      db.close();
+    const { rows } = await sql`SELECT * FROM waivers WHERE id = ${id}`;
+    if (rows.length === 0) {
       return NextResponse.json({ error: "Waiver not found" }, { status: 404 });
     }
 
+    const waiver = rows[0];
+
     // Delete verification codes for this email too
-    db.prepare("DELETE FROM verification_codes WHERE LOWER(email) = LOWER(?)").run(
-      (waiver as any).email
-    );
-    db.prepare("DELETE FROM waivers WHERE id = ?").run(id);
-    db.close();
+    await sql`DELETE FROM verification_codes WHERE LOWER(email) = LOWER(${waiver.email})`;
+    await sql`DELETE FROM waivers WHERE id = ${id}`;
 
     return NextResponse.json({ success: true, message: "Waiver deleted" });
   } catch (error) {

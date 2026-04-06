@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validTeams = getTeams();
+    const validTeams = await getTeams();
     if (team && !validTeams.includes(team)) {
       return NextResponse.json(
         { error: "Invalid team selection" },
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check duplicate
-    if (checkEmailSigned(email)) {
+    if (await checkEmailSigned(email)) {
       return NextResponse.json(
         { error: "This email has already been used to sign a waiver." },
         { status: 409 }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check email verified
-    if (!isEmailVerified(email)) {
+    if (!(await isEmailVerified(email))) {
       return NextResponse.json(
         { error: "Email has not been verified. Please verify your email first." },
         { status: 403 }
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to database
-    saveWaiver({
+    await saveWaiver({
       documentId,
       fullName,
       email,

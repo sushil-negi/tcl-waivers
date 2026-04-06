@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Database from "better-sqlite3";
-import path from "path";
-
-const DB_PATH = path.join(process.cwd(), "data", "waivers.db");
-
-function getDb() {
-  return new Database(DB_PATH, { readonly: true });
-}
+import { sql } from "@vercel/postgres";
 
 function checkAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -25,32 +18,30 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const team = searchParams.get("team") || "";
 
-    const db = getDb();
+    let result;
 
-    let query = "SELECT * FROM waivers";
-    const conditions: string[] = [];
-    const params: string[] = [];
-
-    if (search) {
-      conditions.push("(LOWER(full_name) LIKE ? OR LOWER(email) LIKE ?)");
-      params.push(`%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`);
+    if (search && team) {
+      result = await sql`
+        SELECT * FROM waivers
+        WHERE (LOWER(full_name) LIKE ${`%${search.toLowerCase()}%`} OR LOWER(email) LIKE ${`%${search.toLowerCase()}%`})
+        AND team = ${team}
+        ORDER BY created_at DESC
+      `;
+    } else if (search) {
+      result = await sql`
+        SELECT * FROM waivers
+        WHERE LOWER(full_name) LIKE ${`%${search.toLowerCase()}%`} OR LOWER(email) LIKE ${`%${search.toLowerCase()}%`}
+        ORDER BY created_at DESC
+      `;
+    } else if (team) {
+      result = await sql`
+        SELECT * FROM waivers WHERE team = ${team} ORDER BY created_at DESC
+      `;
+    } else {
+      result = await sql`SELECT * FROM waivers ORDER BY created_at DESC`;
     }
 
-    if (team) {
-      conditions.push("team = ?");
-      params.push(team);
-    }
-
-    if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
-    }
-
-    query += " ORDER BY created_at DESC";
-
-    const waivers = db.prepare(query).all(...params);
-    db.close();
-
-    return NextResponse.json({ waivers });
+    return NextResponse.json({ waivers: result.rows });
   } catch (error) {
     console.error("Admin list error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

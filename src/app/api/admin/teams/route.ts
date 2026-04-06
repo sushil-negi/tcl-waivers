@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   if (!checkAuth(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const teams = getTeams();
+  const teams = await getTeams();
   return NextResponse.json({ teams });
 }
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Team name is required (min 2 characters)" }, { status: 400 });
   }
 
-  const result = addTeam(name.trim());
+  const result = await addTeam(name.trim());
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 409 });
   }
@@ -43,7 +43,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Team name is required" }, { status: 400 });
   }
 
-  const result = removeTeam(name);
+  const result = await removeTeam(name);
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

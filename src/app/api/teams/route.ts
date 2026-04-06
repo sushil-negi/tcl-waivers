@@ -3,7 +3,7 @@ import { getTeams } from "@/lib/db";
 
 export async function GET() {
   try {
-    const teams = getTeams();
+    const teams = await getTeams();
     return NextResponse.json({ teams });
   } catch (error) {
     console.error("Get teams error:", error);

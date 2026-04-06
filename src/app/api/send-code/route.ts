@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already signed
-    if (checkEmailSigned(email)) {
+    if (await checkEmailSigned(email)) {
       return NextResponse.json(
         { error: "This email has already been used to sign a waiver." },
         { status: 409 }
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const code = generateVerificationCode();
-    storeVerificationCode(email, code);
+    await storeVerificationCode(email, code);
 
     try {
       await sendVerificationEmail(email, code);

@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    const alreadySigned = checkEmailSigned(email);
+    const alreadySigned = await checkEmailSigned(email);
 
     return NextResponse.json({ alreadySigned });
   } catch (error) {
