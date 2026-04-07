@@ -1,10 +1,11 @@
 import { sql } from "@vercel/postgres";
 import crypto from "crypto";
 
-let initialized = false;
+// Use global to persist across hot-reloads in dev
+const globalForDb = globalThis as unknown as { dbInitialized?: boolean };
 
 async function initSchema() {
-  if (initialized) return;
+  if (globalForDb.dbInitialized) return;
 
   await sql`
     CREATE TABLE IF NOT EXISTS waivers (
@@ -48,13 +49,8 @@ async function initSchema() {
     )
   `;
 
-  // Create indexes (IF NOT EXISTS not supported for indexes in all PG versions, use DO block)
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_waivers_email ON waivers(email)
-  `;
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_verification_email ON verification_codes(email)
-  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_waivers_email ON waivers(email)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_verification_email ON verification_codes(email)`;
 
   // Seed default teams if table is empty
   const { rows } = await sql`SELECT COUNT(*) as c FROM teams`;
@@ -65,7 +61,7 @@ async function initSchema() {
     }
   }
 
-  initialized = true;
+  globalForDb.dbInitialized = true;
 }
 
 export async function checkEmailSigned(email: string): Promise<boolean> {

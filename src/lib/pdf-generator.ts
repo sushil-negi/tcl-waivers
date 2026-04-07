@@ -29,6 +29,24 @@ interface WaiverData {
   };
 }
 
+// Sanitize text for WinAnsi encoding (Helvetica font)
+function sanitize(text: string): string {
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    const ch = text[i];
+    if (ch === "\u2018" || ch === "\u2019") result += "'";
+    else if (ch === "\u201C" || ch === "\u201D") result += '"';
+    else if (ch === "\u2014") result += "--";
+    else if (ch === "\u2013") result += "-";
+    else if (ch === "\u2026") result += "...";
+    else if (ch === "\u2022") result += "-";
+    else if (code <= 255) result += ch;
+    // Skip any character > 255 (not WinAnsi encodable)
+  }
+  return result;
+}
+
 export async function generateSignedPdf(
   data: WaiverData
 ): Promise<{ pdfBytes: Uint8Array; pdfHash: string }> {
@@ -60,6 +78,24 @@ export async function generateSignedPdf(
   }
 
   function drawText(
+    rawText: string,
+    options: {
+      size?: number;
+      bold?: boolean;
+      color?: [number, number, number];
+      indent?: number;
+    } = {}
+  ) {
+    // Split on newlines and draw each line separately
+    const lines = sanitize(rawText).split("\n");
+    for (const singleLine of lines) {
+      const trimmed = singleLine.trim();
+      if (!trimmed) continue;
+      drawSingleLine(trimmed, options);
+    }
+  }
+
+  function drawSingleLine(
     text: string,
     options: {
       size?: number;

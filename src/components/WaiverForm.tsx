@@ -194,7 +194,7 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
                     setForm({ ...form, team });
                     setShowTeamSuggestions(false);
                   }}
-                  className="px-4 py-2 hover:bg-orange-50 cursor-pointer text-sm"
+                  className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium text-gray-900"
                 >
                   {team}
                 </li>

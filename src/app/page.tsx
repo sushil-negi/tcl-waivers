@@ -170,7 +170,7 @@ export default function Home() {
   const currentStepIndex = steps.findIndex((s) => s.key === step);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-orange-50/40">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-orange-50/40 flex flex-col">
       <header className="bg-[#1E2533] text-white py-5 px-4 shadow-lg">
         <div className="flex items-center justify-center gap-4">
           <div className="bg-white rounded-full p-1.5 shadow-md">
@@ -190,7 +190,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 mt-6">
+      <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full px-4 mt-6">
         <div className="flex items-center justify-between mb-8">
           {steps.map((s, index) => (
             <div key={s.key} className="flex items-center flex-1">
@@ -232,7 +232,7 @@ export default function Home() {
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 pb-16">
+      <main className="max-w-2xl mx-auto w-full px-4 pb-16">
         <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-6 md:p-8 relative overflow-hidden">
           {/* Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
