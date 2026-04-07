@@ -1,53 +1,58 @@
 /**
  * Waiver text template for Tennis Cricket League.
- * Replace this content with your own waiver text.
  * Use {PARTICIPANT_NAME} as a placeholder — it will be replaced with the signer's name.
  */
 export function getWaiverText(participantName: string): string {
   const template = `
-In consideration of being allowed to participate in Tennis Cricket League ("TCL") activities, events, tournaments, practices, and related programs, I, {PARTICIPANT_NAME}, hereby acknowledge, agree, and represent as follows:
+SPORTS LEAGUE PARTICIPATION AGREEMENT LIABILITY WAIVER AND RELEASE
 
-## Assumption of Risk
+In consideration for being allowed to participate in any activities, games, practices, tournaments, or events organized by TCL ("League"), the undersigned participant agrees to the following:
 
-I acknowledge that participating in cricket and tennis activities involves inherent risks of physical injury, including but not limited to: sprains, fractures, concussions, muscle injuries, ligament tears, and other bodily harm. I understand that these risks may result from my own actions, the actions of other participants, or the condition of facilities and equipment. I voluntarily assume all such risks, both known and unknown, even if arising from the negligence of TCL, its organizers, officials, volunteers, or other participants.
+## 1. Assumption of Risk
 
-## Waiver and Release of Liability
+I understand that participation in sports activities, including but not limited to training sessions, Practice, tournaments and related events, involves inherent risks. These risks include, but are not limited to:
+- Serious bodily injury
+- Permanent disability or paralysis
+- Property damage
+- Illness or death
 
-I, {PARTICIPANT_NAME}, hereby release, discharge, and hold harmless Tennis Cricket League, its organizers, officers, directors, employees, agents, volunteers, sponsors, venue owners, and all other persons or entities acting on their behalf (collectively, the "Released Parties") from any and all claims, demands, causes of action, damages, losses, or liabilities of any kind, whether known or unknown, arising out of or related to my participation in TCL activities, including but not limited to personal injury, property damage, or death.
+I voluntarily and knowingly assume all risks, both known and unknown, associated with participation in these activities.
 
-## Medical Authorization
+## 2. Release of Liability
 
-I authorize TCL and its representatives to seek and obtain emergency medical treatment on my behalf if I am unable to do so myself during any TCL event or activity. I understand that I am solely responsible for any medical costs incurred.
+To the fullest extent permitted by law, I hereby release, waive, discharge, and hold harmless TCL, its organizers, officers, directors, volunteers, officials, sponsors, participants, property owners, and agents (collectively "Released Parties") from any and all claims, liabilities, damages, losses, or expenses arising from or related to my participation in any League activity, including claims resulting from negligence of the Released Parties.
 
-## Fitness to Participate
+## 3. Indemnification
 
-I represent that I am physically fit and have no medical condition that would prevent my safe participation in TCL activities. I agree to notify TCL organizers of any changes to my health status that may affect my ability to participate safely.
+I agree to defend, indemnify, and hold harmless the Released Parties from any claims, demands, damages, costs, attorney's fees arising out of or related to my participation in League activities.
 
-## Code of Conduct
+## 4. Health and Fitness Certification
 
-I agree to abide by all rules, regulations, and codes of conduct established by TCL. I understand that unsportsmanlike behavior, including but not limited to verbal abuse, physical altercation, or cheating, may result in immediate removal from the league without refund.
+I certify that I am physically fit and able to participate in athletic activities. I understand that it is my responsibility to consult a physician before participating if I have any medical concerns.
 
-## Media Release
+## 5. Compliance with Rules
 
-I grant TCL permission to use my name, likeness, and photographs or video recordings taken during TCL events for promotional, educational, or informational purposes without compensation.
+I agree to follow all rules, safety guidelines, and instructions provided by League officials. I understand that failure to comply may result in removal from participation without refund any further liability to league.
 
-## Indemnification
+## 6. Medical Treatment Authorization
 
-I agree to indemnify and hold harmless the Released Parties from any and all claims, actions, suits, procedures, costs, expenses, damages, and liabilities arising out of my involvement in TCL activities, including any claims brought by third parties.
+In the event of injury or medical emergency, I authorize League officials to obtain necessary medical treatment on my behalf. I accept responsibility for any related medical costs.
+
+## 7. No Reliance on Representations
+
+I acknowledge that I am not relying on any oral statements or representations other than those contained in this written agreement.
+
+## 8. Governing Law
+
+This agreement shall be governed by and interpreted in accordance with the laws of the State of Pennsylvania.
+
+## 9. Acknowledgment
+
+I have read this agreement carefully, fully understand its contents, and understand that by signing it I am giving up certain legal rights, including the right to bring legal claims against the Released Parties.
 
 ## Electronic Signature Acknowledgment
 
 I acknowledge that by signing this document electronically, I am providing my legal consent and agree that my electronic signature carries the same legal force and effect as a handwritten signature. I consent to conducting this transaction electronically pursuant to the U.S. Electronic Signatures in Global and National Commerce (ESIGN) Act and applicable state Uniform Electronic Transactions Act (UETA).
-
-## Governing Law
-
-This waiver shall be governed by and construed in accordance with the laws of the state in which TCL primarily operates, without regard to conflict of law principles.
-
-## Severability
-
-If any provision of this waiver is found to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.
-
-I HAVE READ THIS WAIVER AND RELEASE, FULLY UNDERSTAND ITS TERMS, AND UNDERSTAND THAT I AM GIVING UP SUBSTANTIAL RIGHTS, INCLUDING MY RIGHT TO SUE. I SIGN IT FREELY AND VOLUNTARILY WITHOUT ANY INDUCEMENT.
 `.trim();
 
   return template.replace(/\{PARTICIPANT_NAME\}/g, participantName);
