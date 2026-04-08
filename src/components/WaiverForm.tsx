@@ -8,9 +8,15 @@ export interface PlayerInfo {
   phone: string;
   dateOfBirth: string;
   team: string;
+  cricclubsId: string;
+  isMinor: boolean;
+  guardianName: string;
+  guardianRelationship: string;
   emergencyContactName: string;
   emergencyContactPhone: string;
 }
+
+const GUARDIAN_RELATIONSHIPS = ["Parent", "Mother", "Father", "Legal Guardian"];
 
 interface WaiverFormProps {
   onSubmit: (info: PlayerInfo) => void;
@@ -24,6 +30,10 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
     phone: "",
     dateOfBirth: "",
     team: "",
+    cricclubsId: "",
+    isMinor: false,
+    guardianName: "",
+    guardianRelationship: "",
     emergencyContactName: "",
     emergencyContactPhone: "",
   });
@@ -37,6 +47,18 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
       .then((data) => setTeams(data.teams || []))
       .catch(() => {});
   }, []);
+
+  // Compute isMinor whenever DOB changes
+  useEffect(() => {
+    if (form.dateOfBirth) {
+      const dob = new Date(form.dateOfBirth);
+      const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      const minor = age < 18;
+      if (minor !== form.isMinor) {
+        setForm((prev) => ({ ...prev, isMinor: minor }));
+      }
+    }
+  }, [form.dateOfBirth, form.isMinor]);
 
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof PlayerInfo, string>> = {};
@@ -56,18 +78,29 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
 
     if (!form.dateOfBirth) {
       newErrors.dateOfBirth = "Date of birth is required";
-    } else {
-      const dob = new Date(form.dateOfBirth);
-      const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      if (age < 18) {
-        newErrors.dateOfBirth = "You must be at least 18 years old";
-      }
     }
 
     if (!form.team) {
       newErrors.team = "Please select a team";
     } else if (!teams.includes(form.team)) {
       newErrors.team = "Please select a valid team from the list";
+    }
+
+    // CricClubs Player ID validation
+    if (!form.cricclubsId.trim()) {
+      newErrors.cricclubsId = "CricClubs Player ID is required";
+    } else if (!/^\d{6,7}$/.test(form.cricclubsId.trim())) {
+      newErrors.cricclubsId = "CricClubs Player ID must be exactly 6 or 7 digits";
+    }
+
+    // Guardian validation when minor
+    if (form.isMinor) {
+      if (!form.guardianName.trim() || form.guardianName.trim().length < 2) {
+        newErrors.guardianName = "Parent/Guardian name is required";
+      }
+      if (!form.guardianRelationship) {
+        newErrors.guardianRelationship = "Please select your relationship to the player";
+      }
     }
 
     if (!form.emergencyContactName.trim()) {
@@ -160,6 +193,62 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
         </div>
       </div>
 
+      {/* Minor notice */}
+      {form.isMinor && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+          <p className="text-amber-800 text-sm font-semibold">
+            Player is under 18 years old
+          </p>
+          <p className="text-amber-700 text-sm mt-1">
+            A parent or legal guardian must provide their information and sign the waiver on behalf of the minor.
+          </p>
+        </div>
+      )}
+
+      {/* Guardian section — shown only for minors */}
+      {form.isMinor && (
+        <div className="border-2 border-amber-200 bg-amber-50/30 rounded-lg p-5 space-y-4">
+          <p className="text-base font-bold text-gray-800">
+            Parent/Guardian Information *
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                value={form.guardianName}
+                onChange={(e) => setForm({ ...form, guardianName: e.target.value })}
+                className={inputClass("guardianName")}
+                placeholder="Parent/Guardian full name"
+              />
+              {errors.guardianName && (
+                <p className="text-red-500 text-sm mt-1">{errors.guardianName}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+                Relationship *
+              </label>
+              <select
+                value={form.guardianRelationship}
+                onChange={(e) => setForm({ ...form, guardianRelationship: e.target.value })}
+                className={inputClass("guardianRelationship")}
+              >
+                <option value="">Select relationship</option>
+                {GUARDIAN_RELATIONSHIPS.map((rel) => (
+                  <option key={rel} value={rel}>{rel}</option>
+                ))}
+              </select>
+              {errors.guardianRelationship && (
+                <p className="text-red-500 text-sm mt-1">{errors.guardianRelationship}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-800 mb-1.5">
           Team *
@@ -173,7 +262,6 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
           }}
           onFocus={() => setShowTeamSuggestions(true)}
           onBlur={() => {
-            // Delay to allow click on suggestion
             setTimeout(() => setShowTeamSuggestions(false), 200);
           }}
           className={inputClass("team")}
@@ -205,6 +293,29 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
         {errors.team && (
           <p className="text-red-500 text-sm mt-1">{errors.team}</p>
         )}
+      </div>
+
+      {/* CricClubs Player ID */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-800 mb-1.5">
+          CricClubs Player ID *
+        </label>
+        <input
+          type="text"
+          value={form.cricclubsId}
+          onChange={(e) => setForm({ ...form, cricclubsId: e.target.value.replace(/\D/g, "").slice(0, 7) })}
+          className={inputClass("cricclubsId")}
+          placeholder="e.g. 123456"
+          inputMode="numeric"
+        />
+        {errors.cricclubsId && (
+          <p className="text-red-500 text-sm mt-1">{errors.cricclubsId}</p>
+        )}
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mt-2">
+          <p className="text-amber-800 text-xs font-medium">
+            Incorrect player IDs or partially signed waivers will delay the onboarding of the players to the team roster.
+          </p>
+        </div>
       </div>
 
       <div className="border-t-2 border-gray-200 pt-5">

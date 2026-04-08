@@ -13,6 +13,10 @@ interface WaiverData {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   team?: string;
+  cricclubsId?: string;
+  isMinor?: boolean;
+  guardianName?: string;
+  guardianRelationship?: string;
   ipAddress: string;
   signedAt: string;
   signedAtUtc: string;
@@ -196,12 +200,27 @@ export async function generateSignedPdf(
   if (data.phone) drawText(`Phone: ${data.phone}`);
   if (data.dateOfBirth) drawText(`Date of Birth: ${data.dateOfBirth}`);
   if (data.team) drawText(`Team: ${data.team}`);
+  if (data.cricclubsId) drawText(`CricClubs Player ID: ${data.cricclubsId}`);
   if (data.emergencyContactName) {
     drawText(`Emergency Contact: ${data.emergencyContactName}`);
   }
   if (data.emergencyContactPhone) {
     drawText(`Emergency Contact Phone: ${data.emergencyContactPhone}`);
   }
+
+  if (data.isMinor) {
+    yPos -= 4;
+    drawText("MINOR PARTICIPANT - PARENT/GUARDIAN AUTHORIZATION", {
+      size: 10,
+      bold: true,
+      color: [0.8, 0.1, 0.1],
+    });
+    yPos -= 2;
+    if (data.guardianName) drawText(`Guardian Name: ${data.guardianName}`);
+    if (data.guardianRelationship) drawText(`Relationship to Player: ${data.guardianRelationship}`);
+    drawText("This waiver is signed by the above parent/guardian on behalf of the minor participant.");
+  }
+
   yPos -= 8;
   drawLine();
   yPos -= 4;
@@ -214,7 +233,10 @@ export async function generateSignedPdf(
   });
   yPos -= 4;
 
-  const waiverText = getWaiverText(data.fullName);
+  const waiverText = getWaiverText(data.fullName, {
+    isMinor: data.isMinor,
+    guardianName: data.guardianName,
+  });
   const paragraphs = waiverText.split("\n\n");
 
   for (const paragraph of paragraphs) {
@@ -254,7 +276,12 @@ export async function generateSignedPdf(
   ensureSpace(sigDisplayHeight + 80);
 
   // Signature label
-  drawText("Signature:", { bold: true });
+  drawText(
+    data.isMinor
+      ? `Parent/Guardian Signature (${data.guardianName || "Guardian"}):`
+      : "Signature:",
+    { bold: true }
+  );
   yPos -= 4;
 
   // Draw signature image
@@ -282,6 +309,11 @@ export async function generateSignedPdf(
   drawText(`IP Address: ${data.ipAddress}`);
   drawText(`Email Verified: Yes`);
   drawText(`Signing Method: Electronic signature via web application`);
+  if (data.cricclubsId) drawText(`CricClubs Player ID: ${data.cricclubsId}`);
+  if (data.isMinor) {
+    drawText(`Minor Participant: Yes`);
+    drawText(`Signed by Guardian: ${data.guardianName || "N/A"} (${data.guardianRelationship || "N/A"})`);
+  }
 
   if (data.clientInfo) {
     yPos -= 4;

@@ -52,6 +52,12 @@ async function initSchema() {
   await sql`CREATE INDEX IF NOT EXISTS idx_waivers_email ON waivers(email)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_verification_email ON verification_codes(email)`;
 
+  // Schema migrations — add new columns to existing tables
+  await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS is_minor BOOLEAN DEFAULT FALSE`;
+  await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS guardian_name TEXT`;
+  await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS guardian_relationship TEXT`;
+  await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS cricclubs_id TEXT`;
+
   // Seed default teams if table is empty
   const { rows } = await sql`SELECT COUNT(*) as c FROM teams`;
   if (parseInt(rows[0].c) === 0) {
@@ -136,6 +142,10 @@ export async function saveWaiver(data: {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   team?: string;
+  cricclubsId?: string;
+  isMinor?: boolean;
+  guardianName?: string;
+  guardianRelationship?: string;
   ipAddress: string;
   userAgent?: string;
   signedAt: string;
@@ -149,13 +159,17 @@ export async function saveWaiver(data: {
     INSERT INTO waivers (
       document_id, full_name, email, phone, date_of_birth,
       emergency_contact_name, emergency_contact_phone, team,
+      cricclubs_id, is_minor, guardian_name, guardian_relationship,
       ip_address, user_agent, signed_at, signed_at_utc,
       pdf_hash, drive_file_id, drive_file_url
     ) VALUES (
       ${data.documentId}, ${data.fullName}, ${data.email.toLowerCase()},
       ${data.phone || null}, ${data.dateOfBirth || null},
       ${data.emergencyContactName || null}, ${data.emergencyContactPhone || null},
-      ${data.team || null}, ${data.ipAddress}, ${data.userAgent || null},
+      ${data.team || null}, ${data.cricclubsId || null},
+      ${data.isMinor || false}, ${data.guardianName || null},
+      ${data.guardianRelationship || null},
+      ${data.ipAddress}, ${data.userAgent || null},
       ${data.signedAt}, ${data.signedAtUtc}, ${data.pdfHash},
       ${data.driveFileId || null}, ${data.driveFileUrl || null}
     )

@@ -20,6 +20,9 @@ export async function POST(request: NextRequest) {
       emergencyContactName,
       emergencyContactPhone,
       team,
+      cricclubsId,
+      guardianName,
+      guardianRelationship,
       signatureDataUrl,
       consentToElectronic,
       agreeToTerms,
@@ -32,6 +35,39 @@ export async function POST(request: NextRequest) {
         { error: "Name, email, and signature are required" },
         { status: 400 }
       );
+    }
+
+    // CricClubs Player ID validation
+    if (!cricclubsId || !/^\d{6,7}$/.test(cricclubsId)) {
+      return NextResponse.json(
+        { error: "CricClubs Player ID must be exactly 6 or 7 digits" },
+        { status: 400 }
+      );
+    }
+
+    // Compute isMinor server-side
+    let isMinor = false;
+    if (dateOfBirth) {
+      const dob = new Date(dateOfBirth);
+      const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      isMinor = age < 18;
+    }
+
+    // Guardian validation for minors
+    if (isMinor) {
+      if (!guardianName || guardianName.trim().length < 2) {
+        return NextResponse.json(
+          { error: "Parent/Guardian name is required for minor participants" },
+          { status: 400 }
+        );
+      }
+      const validRelationships = ["Parent", "Mother", "Father", "Legal Guardian"];
+      if (!guardianRelationship || !validRelationships.includes(guardianRelationship)) {
+        return NextResponse.json(
+          { error: "Valid guardian relationship is required for minor participants" },
+          { status: 400 }
+        );
+      }
     }
 
     const validTeams = await getTeams();
@@ -89,6 +125,10 @@ export async function POST(request: NextRequest) {
       emergencyContactName,
       emergencyContactPhone,
       team,
+      cricclubsId,
+      isMinor,
+      guardianName: isMinor ? guardianName : undefined,
+      guardianRelationship: isMinor ? guardianRelationship : undefined,
       ipAddress,
       signedAt,
       signedAtUtc,
@@ -120,6 +160,10 @@ export async function POST(request: NextRequest) {
       emergencyContactName,
       emergencyContactPhone,
       team,
+      cricclubsId,
+      isMinor,
+      guardianName: isMinor ? guardianName : undefined,
+      guardianRelationship: isMinor ? guardianRelationship : undefined,
       ipAddress,
       userAgent,
       signedAt,

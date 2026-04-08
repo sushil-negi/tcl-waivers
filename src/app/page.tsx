@@ -301,7 +301,11 @@ export default function Home() {
                 Please read the waiver carefully, then sign below.
               </p>
 
-              <WaiverPreview participantName={playerInfo.fullName} />
+              <WaiverPreview
+                participantName={playerInfo.fullName}
+                isMinor={playerInfo.isMinor}
+                guardianName={playerInfo.guardianName}
+              />
 
               <div className="mt-6 space-y-4">
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -312,9 +316,9 @@ export default function Home() {
                     className="mt-1 h-4 w-4 text-green-600 rounded"
                   />
                   <span className="text-sm text-gray-700">
-                    I consent to signing this document electronically and
-                    acknowledge that my electronic signature has the same legal
-                    effect as a handwritten signature.
+                    {playerInfo.isMinor
+                      ? `As the ${playerInfo.guardianRelationship || "parent/guardian"} of ${playerInfo.fullName}, I consent to signing this document electronically on behalf of the minor and acknowledge that my electronic signature has the same legal effect as a handwritten signature.`
+                      : "I consent to signing this document electronically and acknowledge that my electronic signature has the same legal effect as a handwritten signature."}
                   </span>
                 </label>
 
@@ -326,16 +330,16 @@ export default function Home() {
                     className="mt-1 h-4 w-4 text-green-600 rounded"
                   />
                   <span className="text-sm text-gray-700">
-                    I have read this waiver and release, fully understand its
-                    terms, and understand that I am giving up substantial rights.
-                    I sign it freely and voluntarily.
+                    {playerInfo.isMinor
+                      ? `As the ${playerInfo.guardianRelationship || "parent/guardian"} of ${playerInfo.fullName}, I have read this waiver and release, fully understand its terms, and understand that I am giving up substantial rights on behalf of the minor. I sign it freely and voluntarily.`
+                      : "I have read this waiver and release, fully understand its terms, and understand that I am giving up substantial rights. I sign it freely and voluntarily."}
                   </span>
                 </label>
               </div>
 
               <div className="mt-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Your Signature *
+                  {playerInfo.isMinor ? "Parent/Guardian Signature *" : "Your Signature *"}
                 </label>
                 <SignaturePad onSignatureChange={handleSignatureChange} />
               </div>

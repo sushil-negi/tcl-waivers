@@ -4,10 +4,12 @@ import { getWaiverText } from "@/lib/waiver-template";
 
 interface WaiverPreviewProps {
   participantName: string;
+  isMinor?: boolean;
+  guardianName?: string;
 }
 
-export default function WaiverPreview({ participantName }: WaiverPreviewProps) {
-  const waiverText = getWaiverText(participantName);
+export default function WaiverPreview({ participantName, isMinor, guardianName }: WaiverPreviewProps) {
+  const waiverText = getWaiverText(participantName, { isMinor, guardianName });
   const paragraphs = waiverText.split("\n\n");
 
   return (

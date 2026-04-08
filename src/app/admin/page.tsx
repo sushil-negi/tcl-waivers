@@ -102,6 +102,25 @@ export default function AdminPage() {
     }
   }, [authHeader]);
 
+  const handleExportCsv = async () => {
+    try {
+      const res = await fetch("/api/admin/export", { headers: authHeader() });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `tcl-waivers-export-${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleAddTeam = async () => {
     setTeamError("");
     if (!newTeamName.trim()) return;
@@ -416,6 +435,12 @@ export default function AdminPage() {
                   className="px-6 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-colors text-sm"
                 >
                   Search
+                </button>
+                <button
+                  onClick={handleExportCsv}
+                  className="px-6 py-2 bg-[#1E2533] text-white rounded-lg font-semibold hover:bg-[#2a3647] transition-colors text-sm"
+                >
+                  Export CSV
                 </button>
               </div>
             </div>
