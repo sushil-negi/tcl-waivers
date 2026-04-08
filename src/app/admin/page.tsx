@@ -37,9 +37,39 @@ interface Stats {
   recentSignings: any[];
 }
 
+const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
+function getStoredSession(): { password: string; authenticated: boolean } {
+  if (typeof window === "undefined") return { password: "", authenticated: false };
+  try {
+    const stored = sessionStorage.getItem("tcl-admin-session");
+    if (!stored) return { password: "", authenticated: false };
+    const { password, expiresAt } = JSON.parse(stored);
+    if (Date.now() > expiresAt) {
+      sessionStorage.removeItem("tcl-admin-session");
+      return { password: "", authenticated: false };
+    }
+    return { password, authenticated: true };
+  } catch {
+    return { password: "", authenticated: false };
+  }
+}
+
+function saveSession(password: string) {
+  sessionStorage.setItem(
+    "tcl-admin-session",
+    JSON.stringify({ password, expiresAt: Date.now() + SESSION_DURATION_MS })
+  );
+}
+
+function clearSession() {
+  sessionStorage.removeItem("tcl-admin-session");
+}
+
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authenticated, setAuthenticated] = useState(false);
+  const stored = getStoredSession();
+  const [password, setPassword] = useState(stored.password);
+  const [authenticated, setAuthenticated] = useState(stored.authenticated);
   const [authError, setAuthError] = useState("");
   const [waivers, setWaivers] = useState<Waiver[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -165,6 +195,7 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${password}` },
     });
     if (res.ok) {
+      saveSession(password);
       setAuthenticated(true);
     } else {
       setAuthError("Invalid password");
@@ -265,6 +296,16 @@ export default function AdminPage() {
               }`}
             >
               Teams
+            </button>
+            <button
+              onClick={() => {
+                clearSession();
+                setAuthenticated(false);
+                setPassword("");
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 transition-colors"
+            >
+              Logout
             </button>
           </div>
         </div>
