@@ -204,7 +204,7 @@ export default function AdminPage() {
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             placeholder="Enter admin password"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 mb-4"
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 focus:bg-white mb-4"
           />
           {authError && (
             <p className="text-red-500 text-sm mb-4">{authError}</p>
@@ -385,7 +385,7 @@ export default function AdminPage() {
                     <tbody>
                       {stats.recentSignings.map((w: any) => (
                         <tr key={w.document_id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-2 px-3 font-medium">{w.full_name}</td>
+                          <td className="py-2 px-3 font-medium text-gray-900">{w.full_name}</td>
                           <td className="py-2 px-3 text-gray-600">{w.email}</td>
                           <td className="py-2 px-3">
                             <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
@@ -416,12 +416,12 @@ export default function AdminPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && fetchWaivers()}
                   placeholder="Search by name or email..."
-                  className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 text-sm"
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 focus:bg-white text-sm"
                 />
                 <select
                   value={teamFilter}
                   onChange={(e) => setTeamFilter(e.target.value)}
-                  className="px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                  className="px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white text-sm"
                 >
                   <option value="">All Teams</option>
                   {teams.map((t) => (
@@ -474,7 +474,7 @@ export default function AdminPage() {
                           key={w.id}
                           className="border-b border-gray-100 hover:bg-gray-50"
                         >
-                          <td className="py-3 px-4 font-medium">{w.full_name}</td>
+                          <td className="py-3 px-4 font-medium text-gray-900">{w.full_name}</td>
                           <td className="py-3 px-4 text-gray-600">{w.email}</td>
                           <td className="py-3 px-4">
                             <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
@@ -549,7 +549,7 @@ export default function AdminPage() {
                   onChange={(e) => setNewTeamName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAddTeam()}
                   placeholder="Enter team name..."
-                  className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 text-sm"
+                  className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-400 focus:bg-white text-sm"
                 />
                 <button
                   onClick={handleAddTeam}
