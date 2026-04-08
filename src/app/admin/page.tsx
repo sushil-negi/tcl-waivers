@@ -26,6 +26,7 @@ interface Waiver {
   emergency_contact_phone: string;
   ip_address: string;
   signed_at: string;
+  drive_file_id: string;
   drive_file_url: string;
   pdf_hash: string;
 }
@@ -46,6 +47,7 @@ export default function AdminPage() {
   const [teamFilter, setTeamFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<Waiver | null>(null);
   const [view, setView] = useState<"dashboard" | "waivers" | "teams">("dashboard");
   const [teams, setTeams] = useState<string[]>([]);
   const [newTeamName, setNewTeamName] = useState("");
@@ -169,13 +171,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    const res = await fetch(`/api/admin/waivers/${id}`, {
+  const handleDelete = async (id: number, deleteDrive: boolean = false) => {
+    const res = await fetch(`/api/admin/waivers/${id}?deleteDrive=${deleteDrive}`, {
       method: "DELETE",
       headers: authHeader(),
     });
     if (res.ok) {
       setDeleteConfirm(null);
+      setDeleteModal(null);
       fetchWaivers();
       fetchStats();
     }
@@ -499,29 +502,12 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            {deleteConfirm === w.id ? (
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => handleDelete(w.id)}
-                                  className="px-2 py-1 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirm(null)}
-                                  className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-medium hover:bg-gray-300"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
                               <button
-                                onClick={() => setDeleteConfirm(w.id)}
+                                onClick={() => setDeleteModal(w)}
                                 className="px-3 py-1 bg-red-50 text-red-600 rounded text-xs font-medium hover:bg-red-100 transition-colors"
                               >
                                 Delete
                               </button>
-                            )}
                           </td>
                         </tr>
                       ))}
@@ -607,6 +593,69 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Delete Waiver</h3>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm text-gray-900">
+              <p><span className="font-semibold">Name:</span> {deleteModal.full_name}</p>
+              <p><span className="font-semibold">Email:</span> {deleteModal.email}</p>
+              <p><span className="font-semibold">Team:</span> {deleteModal.team || "N/A"}</p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-800 text-sm font-semibold mb-1">Warning</p>
+              <ul className="text-red-700 text-xs space-y-1">
+                <li>- This will permanently remove the waiver record from the database</li>
+                <li>- The player will be able to sign a new waiver with the same email</li>
+                <li>- This action cannot be undone</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              {deleteModal.drive_file_id ? (
+                <>
+                  <button
+                    onClick={() => handleDelete(deleteModal.id, true)}
+                    className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Delete from Database & Google Drive
+                  </button>
+                  <button
+                    onClick={() => handleDelete(deleteModal.id, false)}
+                    className="w-full py-2.5 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600 transition-colors"
+                  >
+                    Delete from Database Only (keep PDF in Drive)
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => handleDelete(deleteModal.id, false)}
+                  className="w-full py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                >
+                  Delete Waiver Record
+                </button>
+              )}
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
