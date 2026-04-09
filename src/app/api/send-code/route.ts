@@ -4,7 +4,8 @@ import { sendVerificationEmail, generateVerificationCode } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const body = await request.json();
+    const { email, allowExisting } = body;
 
     if (!email || typeof email !== "string") {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -15,8 +16,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    // Check if already signed
-    if (await checkEmailSigned(email)) {
+    // Check if already signed (skip check if adding a team to existing waiver)
+    if (!allowExisting && (await checkEmailSigned(email))) {
       return NextResponse.json(
         { error: "This email has already been used to sign a waiver." },
         { status: 409 }

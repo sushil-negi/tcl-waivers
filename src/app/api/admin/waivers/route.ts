@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-
-function checkAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === (process.env.ADMIN_PASSWORD || "admin123");
-}
+import { checkAuth } from "@/lib/admin-auth";
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkAuth(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -21,10 +16,11 @@ export async function GET(request: NextRequest) {
     let result;
 
     if (search && team) {
+      // Use position() to match multi-team players (comma-separated)
       result = await sql`
         SELECT * FROM waivers
         WHERE (LOWER(full_name) LIKE ${`%${search.toLowerCase()}%`} OR LOWER(email) LIKE ${`%${search.toLowerCase()}%`})
-        AND team = ${team}
+        AND POSITION(${team} IN team) > 0
         ORDER BY created_at DESC
       `;
     } else if (search) {
@@ -34,8 +30,11 @@ export async function GET(request: NextRequest) {
         ORDER BY created_at DESC
       `;
     } else if (team) {
+      // Match team anywhere in the comma-separated list
       result = await sql`
-        SELECT * FROM waivers WHERE team = ${team} ORDER BY created_at DESC
+        SELECT * FROM waivers
+        WHERE POSITION(${team} IN team) > 0
+        ORDER BY created_at DESC
       `;
     } else {
       result = await sql`SELECT * FROM waivers ORDER BY created_at DESC`;

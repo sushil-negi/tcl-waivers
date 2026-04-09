@@ -45,10 +45,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Compute isMinor server-side
+    // Validate and compute isMinor server-side
     let isMinor = false;
     if (dateOfBirth) {
       const dob = new Date(dateOfBirth);
+      if (isNaN(dob.getTime()) || dob > new Date() || dob.getFullYear() < 1900) {
+        return NextResponse.json(
+          { error: "Invalid date of birth" },
+          { status: 400 }
+        );
+      }
       const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       isMinor = age < 18;
     }
@@ -71,11 +77,18 @@ export async function POST(request: NextRequest) {
     }
 
     const validTeams = await getTeams();
-    if (team && !validTeams.includes(team)) {
-      return NextResponse.json(
-        { error: "Invalid team selection" },
-        { status: 400 }
-      );
+    if (team) {
+      const selectedTeams = team.split(",").map((t: string) => t.trim()).filter(Boolean);
+      if (selectedTeams.length === 0) {
+        return NextResponse.json({ error: "Please select at least one team" }, { status: 400 });
+      }
+      if (selectedTeams.length > 5) {
+        return NextResponse.json({ error: "Maximum of 5 teams allowed" }, { status: 400 });
+      }
+      const invalidTeam = selectedTeams.find((t: string) => !validTeams.includes(t));
+      if (invalidTeam) {
+        return NextResponse.json({ error: `Invalid team: "${invalidTeam}"` }, { status: 400 });
+      }
     }
 
     if (!consentToElectronic || !agreeToTerms) {
@@ -110,8 +123,9 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") || "unknown";
     const documentId = generateDocumentId();
     const now = new Date();
+    const clientTimezone = clientInfo?.timezone || "America/New_York";
     const signedAt = now.toLocaleString("en-US", {
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timeZone: clientTimezone,
     });
     const signedAtUtc = now.toISOString();
 
@@ -150,28 +164,38 @@ export async function POST(request: NextRequest) {
       // Continue even if Drive upload fails — save record locally
     }
 
-    // Save to database
-    await saveWaiver({
-      documentId,
-      fullName,
-      email,
-      phone,
-      dateOfBirth,
-      emergencyContactName,
-      emergencyContactPhone,
-      team,
-      cricclubsId,
-      isMinor,
-      guardianName: isMinor ? guardianName : undefined,
-      guardianRelationship: isMinor ? guardianRelationship : undefined,
-      ipAddress,
-      userAgent,
-      signedAt,
-      signedAtUtc,
-      pdfHash,
-      driveFileId,
-      driveFileUrl,
-    });
+    // Save to database (catch race condition on duplicate email)
+    try {
+      await saveWaiver({
+        documentId,
+        fullName,
+        email,
+        phone,
+        dateOfBirth,
+        emergencyContactName,
+        emergencyContactPhone,
+        team,
+        cricclubsId,
+        isMinor,
+        guardianName: isMinor ? guardianName : undefined,
+        guardianRelationship: isMinor ? guardianRelationship : undefined,
+        ipAddress,
+        userAgent,
+        signedAt,
+        signedAtUtc,
+        pdfHash,
+        driveFileId,
+        driveFileUrl,
+      });
+    } catch (dbError: any) {
+      if (dbError.code === "23505") {
+        return NextResponse.json(
+          { error: "This email has already been used to sign a waiver." },
+          { status: 409 }
+        );
+      }
+      throw dbError;
+    }
 
     return NextResponse.json({
       success: true,

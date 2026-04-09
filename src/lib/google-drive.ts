@@ -48,7 +48,7 @@ async function getTeamFolderId(
 export async function uploadPdfToDrive(
   pdfBytes: Uint8Array,
   fileName: string,
-  teamName?: string
+  teamNames?: string // comma-separated team names
 ): Promise<{ fileId: string; fileUrl: string }> {
   const auth = getDriveAuth();
   const drive = google.drive({ version: "v3", auth });
@@ -58,12 +58,39 @@ export async function uploadPdfToDrive(
     throw new Error("GOOGLE_DRIVE_FOLDER_ID environment variable is not set");
   }
 
-  // Use team subfolder if team name is provided
-  let targetFolderId = rootFolderId;
-  if (teamName) {
-    targetFolderId = await getTeamFolderId(drive, rootFolderId, teamName);
+  const teams = teamNames
+    ? teamNames.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+
+  let primaryFileId = "";
+  let primaryFileUrl = "";
+
+  if (teams.length === 0) {
+    // No team — upload to root folder
+    const result = await uploadToFolder(drive, pdfBytes, fileName, rootFolderId);
+    primaryFileId = result.fileId;
+    primaryFileUrl = result.fileUrl;
+  } else {
+    // Upload to each team's folder
+    for (let i = 0; i < teams.length; i++) {
+      const folderId = await getTeamFolderId(drive, rootFolderId, teams[i]);
+      const result = await uploadToFolder(drive, pdfBytes, fileName, folderId);
+      if (i === 0) {
+        primaryFileId = result.fileId;
+        primaryFileUrl = result.fileUrl;
+      }
+    }
   }
 
+  return { fileId: primaryFileId, fileUrl: primaryFileUrl };
+}
+
+async function uploadToFolder(
+  drive: ReturnType<typeof google.drive>,
+  pdfBytes: Uint8Array,
+  fileName: string,
+  folderId: string
+): Promise<{ fileId: string; fileUrl: string }> {
   const readable = new Readable();
   readable.push(Buffer.from(pdfBytes));
   readable.push(null);
@@ -72,7 +99,7 @@ export async function uploadPdfToDrive(
     requestBody: {
       name: fileName,
       mimeType: "application/pdf",
-      parents: [targetFolderId],
+      parents: [folderId],
     },
     media: {
       mimeType: "application/pdf",
@@ -83,6 +110,31 @@ export async function uploadPdfToDrive(
 
   const fileId = response.data.id!;
   const fileUrl = response.data.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
-
   return { fileId, fileUrl };
+}
+
+// Upload an existing PDF to additional team folders (for add-team flow)
+export async function uploadToAdditionalTeams(
+  driveFileId: string,
+  fileName: string,
+  newTeams: string[]
+): Promise<void> {
+  const auth = getDriveAuth();
+  const drive = google.drive({ version: "v3", auth });
+
+  const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+  if (!rootFolderId) return;
+
+  // Download the existing file content
+  const fileContent = await drive.files.get(
+    { fileId: driveFileId, alt: "media" },
+    { responseType: "arraybuffer" }
+  );
+
+  const pdfBytes = new Uint8Array(fileContent.data as ArrayBuffer);
+
+  for (const team of newTeams) {
+    const folderId = await getTeamFolderId(drive, rootFolderId, team);
+    await uploadToFolder(drive, pdfBytes, fileName, folderId);
+  }
 }

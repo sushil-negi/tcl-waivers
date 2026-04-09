@@ -8,7 +8,14 @@ import WaiverPreview from "@/components/WaiverPreview";
 import SignaturePad from "@/components/SignaturePad";
 import { gatherClientInfo, ClientInfo } from "@/lib/client-info";
 
-type Step = "form" | "verify" | "sign" | "success";
+type Step = "form" | "add-team" | "verify" | "sign" | "success";
+
+interface ExistingWaiver {
+  fullName: string;
+  currentTeams: string;
+  documentId: string;
+  email: string;
+}
 
 interface SuccessData {
   documentId: string;
@@ -26,10 +33,16 @@ export default function Home() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [existingWaiver, setExistingWaiver] = useState<ExistingWaiver | null>(null);
+  const [addTeamSelections, setAddTeamSelections] = useState<string[]>([]);
+  const [addTeamInput, setAddTeamInput] = useState("");
+  const [showAddTeamSuggestions, setShowAddTeamSuggestions] = useState(false);
+  const [availableTeams, setAvailableTeams] = useState<string[]>([]);
 
-  // Gather client info on page load
+  // Gather client info and teams on page load
   useEffect(() => {
     gatherClientInfo().then(setClientInfo);
+    fetch("/api/teams").then(r => r.json()).then(d => setAvailableTeams(d.teams || [])).catch(() => {});
   }, []);
 
   const handleFormSubmit = async (info: PlayerInfo) => {
@@ -45,9 +58,15 @@ export default function Home() {
       const statusData = await statusRes.json();
 
       if (statusData.alreadySigned) {
-        setError(
-          "This email has already been used to sign a waiver. Each participant can only sign once."
-        );
+        // Offer to add a new team instead of blocking
+        setExistingWaiver({
+          fullName: statusData.fullName,
+          currentTeams: statusData.currentTeams,
+          documentId: statusData.documentId,
+          email: info.email,
+        });
+        setPlayerInfo(info);
+        setStep("add-team");
         setLoading(false);
         return;
       }
@@ -89,6 +108,35 @@ export default function Home() {
       if (!res.ok) {
         setVerifyError(data.error || "Verification failed");
         setLoading(false);
+        return;
+      }
+
+      // If adding a team, submit the team addition directly after verification
+      if (existingWaiver && addTeamSelections.length > 0) {
+        try {
+          const addRes = await fetch("/api/add-team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: existingWaiver.email,
+              newTeams: addTeamSelections,
+            }),
+          });
+          const addData = await addRes.json();
+          if (!addRes.ok) {
+            setVerifyError(addData.error || "Failed to add team");
+            setLoading(false);
+            return;
+          }
+          setSuccessData({
+            documentId: existingWaiver.documentId,
+          });
+          setStep("success");
+        } catch {
+          setVerifyError("Something went wrong adding the team.");
+        } finally {
+          setLoading(false);
+        }
         return;
       }
 
@@ -264,6 +312,143 @@ export default function Home() {
             </>
           )}
 
+          {/* Add Team Step — for returning players */}
+          {step === "add-team" && existingWaiver && (
+            <>
+              <h2 className="text-xl font-bold text-[#1E2533] mb-2">
+                Welcome Back, {existingWaiver.fullName}!
+              </h2>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-blue-800 text-sm">
+                  You have already signed a waiver. You are currently registered with:{" "}
+                  <span className="font-bold">
+                    {existingWaiver.currentTeams || "No team"}
+                  </span>
+                </p>
+                <p className="text-blue-700 text-sm mt-1">
+                  Would you like to register with additional team(s)?
+                </p>
+              </div>
+
+              {/* Team selection chips */}
+              {addTeamSelections.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {addTeamSelections.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1 rounded-full"
+                    >
+                      {t}
+                      <button
+                        type="button"
+                        onClick={() => setAddTeamSelections(addTeamSelections.filter((s) => s !== t))}
+                        className="text-orange-600 hover:text-orange-900 font-bold text-xs ml-0.5"
+                      >
+                        x
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  value={addTeamInput}
+                  onChange={(e) => {
+                    setAddTeamInput(e.target.value);
+                    setShowAddTeamSuggestions(true);
+                  }}
+                  onFocus={() => setShowAddTeamSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowAddTeamSuggestions(false), 200)}
+                  placeholder="Type to search for a team..."
+                  className="w-full px-4 py-3 border-2 rounded-lg bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white focus:border-orange-400 border-gray-300"
+                  autoComplete="off"
+                />
+                {showAddTeamSuggestions && addTeamInput.length > 0 && (() => {
+                  const existingList = existingWaiver.currentTeams
+                    ? existingWaiver.currentTeams.split(",").map((t) => t.trim())
+                    : [];
+                  const filtered = availableTeams.filter(
+                    (t) =>
+                      t.toLowerCase().includes(addTeamInput.toLowerCase()) &&
+                      !existingList.includes(t) &&
+                      !addTeamSelections.includes(t)
+                  );
+                  if (filtered.length === 0) return null;
+                  return (
+                    <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
+                      {filtered.map((team) => (
+                        <li
+                          key={team}
+                          onMouseDown={() => {
+                            setAddTeamSelections([...addTeamSelections, team]);
+                            setAddTeamInput("");
+                            setShowAddTeamSuggestions(false);
+                          }}
+                          className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium text-gray-900"
+                        >
+                          {team}
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={async () => {
+                  if (addTeamSelections.length === 0) {
+                    setError("Please select at least one team to add");
+                    return;
+                  }
+                  setLoading(true);
+                  setError("");
+                  try {
+                    const codeRes = await fetch("/api/send-code", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: existingWaiver.email, allowExisting: true }),
+                    });
+                    if (!codeRes.ok) {
+                      const d = await codeRes.json();
+                      setError(d.error || "Failed to send verification code");
+                      setLoading(false);
+                      return;
+                    }
+                    setStep("verify");
+                  } catch {
+                    setError("Something went wrong.");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading || addTeamSelections.length === 0}
+                className="w-full py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? "Sending code..." : "Verify Email & Add Team(s)"}
+              </button>
+
+              <button
+                onClick={() => {
+                  setStep("form");
+                  setExistingWaiver(null);
+                  setAddTeamSelections([]);
+                  setError("");
+                }}
+                className="mt-3 text-sm text-gray-500 hover:text-gray-700 underline block mx-auto"
+              >
+                Back to registration
+              </button>
+            </>
+          )}
+
           {step === "verify" && playerInfo && (
             <>
               <h2 className="text-xl font-bold text-[#1E2533] mb-2">
@@ -385,10 +570,12 @@ export default function Home() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Waiver Signed Successfully!
+                {existingWaiver ? "Team Added Successfully!" : "Waiver Signed Successfully!"}
               </h2>
               <p className="text-gray-600 mb-6">
-                Your waiver has been recorded and stored securely.
+                {existingWaiver
+                  ? `You've been added to ${addTeamSelections.join(", ")}. Your waiver covers all TCL team activities.`
+                  : "Your waiver has been recorded and stored securely."}
               </p>
 
               <div className="bg-gray-50 rounded-lg p-4 inline-block text-left">

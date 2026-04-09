@@ -7,7 +7,7 @@ export interface PlayerInfo {
   email: string;
   phone: string;
   dateOfBirth: string;
-  team: string;
+  team: string; // comma-separated for multiple teams
   cricclubsId: string;
   isMinor: boolean;
   guardianName: string;
@@ -39,7 +39,25 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
   });
   const [errors, setErrors] = useState<Partial<Record<keyof PlayerInfo, string>>>({});
   const [showTeamSuggestions, setShowTeamSuggestions] = useState(false);
+  const [teamInput, setTeamInput] = useState("");
   const [teams, setTeams] = useState<string[]>([]);
+
+  // Parse selected teams from comma-separated string
+  const selectedTeams = form.team ? form.team.split(",").map((t) => t.trim()).filter(Boolean) : [];
+
+  const addTeam = (teamName: string) => {
+    if (!selectedTeams.includes(teamName)) {
+      const updated = [...selectedTeams, teamName].join(", ");
+      setForm({ ...form, team: updated });
+    }
+    setTeamInput("");
+    setShowTeamSuggestions(false);
+  };
+
+  const removeTeam = (teamName: string) => {
+    const updated = selectedTeams.filter((t) => t !== teamName).join(", ");
+    setForm({ ...form, team: updated });
+  };
 
   useEffect(() => {
     fetch("/api/teams")
@@ -80,10 +98,13 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
       newErrors.dateOfBirth = "Date of birth is required";
     }
 
-    if (!form.team) {
-      newErrors.team = "Please select a team";
-    } else if (!teams.includes(form.team)) {
-      newErrors.team = "Please select a valid team from the list";
+    if (selectedTeams.length === 0) {
+      newErrors.team = "Please select at least one team";
+    } else {
+      const invalidTeam = selectedTeams.find((t) => !teams.includes(t));
+      if (invalidTeam) {
+        newErrors.team = `"${invalidTeam}" is not a valid team`;
+      }
     }
 
     // CricClubs Player ID validation
@@ -251,13 +272,35 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
 
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-800 mb-1.5">
-          Team *
+          Team(s) * <span className="font-normal text-gray-500 text-xs">— you can select more than one</span>
         </label>
+
+        {/* Selected team chips */}
+        {selectedTeams.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {selectedTeams.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1 rounded-full"
+              >
+                {t}
+                <button
+                  type="button"
+                  onClick={() => removeTeam(t)}
+                  className="text-orange-600 hover:text-orange-900 font-bold text-xs ml-0.5"
+                >
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         <input
           type="text"
-          value={form.team}
+          value={teamInput}
           onChange={(e) => {
-            setForm({ ...form, team: e.target.value });
+            setTeamInput(e.target.value);
             setShowTeamSuggestions(true);
           }}
           onFocus={() => setShowTeamSuggestions(true)}
@@ -265,23 +308,22 @@ export default function WaiverForm({ onSubmit, loading }: WaiverFormProps) {
             setTimeout(() => setShowTeamSuggestions(false), 200);
           }}
           className={inputClass("team")}
-          placeholder="Start typing your team name..."
+          placeholder={selectedTeams.length > 0 ? "Add another team..." : "Start typing your team name..."}
           autoComplete="off"
         />
-        {showTeamSuggestions && form.team.length > 0 && (() => {
-          const filtered = teams.filter((t) =>
-            t.toLowerCase().includes(form.team.toLowerCase())
+        {showTeamSuggestions && teamInput.length > 0 && (() => {
+          const filtered = teams.filter(
+            (t) =>
+              t.toLowerCase().includes(teamInput.toLowerCase()) &&
+              !selectedTeams.includes(t)
           );
-          if (filtered.length === 0 || (filtered.length === 1 && filtered[0] === form.team)) return null;
+          if (filtered.length === 0) return null;
           return (
             <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg">
               {filtered.map((team) => (
                 <li
                   key={team}
-                  onMouseDown={() => {
-                    setForm({ ...form, team });
-                    setShowTeamSuggestions(false);
-                  }}
+                  onMouseDown={() => addTeam(team)}
                   className="px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm font-medium text-gray-900"
                 >
                   {team}

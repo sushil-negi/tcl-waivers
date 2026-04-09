@@ -1,24 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTeams, addTeam, removeTeam } from "@/lib/db";
-
-function checkAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === (process.env.ADMIN_PASSWORD || "admin123");
-}
+import { checkAuth } from "@/lib/admin-auth";
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkAuth(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
   const teams = await getTeams();
   return NextResponse.json({ teams });
 }
 
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkAuth(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
 
   const { name } = await request.json();
@@ -34,8 +30,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkAuth(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
 
   const { name } = await request.json();

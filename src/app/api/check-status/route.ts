@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkEmailSigned } from "@/lib/db";
+import { sql } from "@vercel/postgres";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +14,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    const alreadySigned = await checkEmailSigned(email);
+    const { rows } = await sql`
+      SELECT full_name, team, document_id FROM waivers
+      WHERE LOWER(email) = LOWER(${email})
+    `;
 
-    return NextResponse.json({ alreadySigned });
+    if (rows.length > 0) {
+      const waiver = rows[0];
+      return NextResponse.json({
+        alreadySigned: true,
+        fullName: waiver.full_name,
+        currentTeams: waiver.team || "",
+        documentId: waiver.document_id,
+      });
+    }
+
+    return NextResponse.json({ alreadySigned: false });
   } catch (error) {
     console.error("Check status error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

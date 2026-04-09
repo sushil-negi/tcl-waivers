@@ -267,7 +267,12 @@ export async function generateSignedPdf(
     ""
   );
   const signatureBytes = Buffer.from(signatureBase64, "base64");
-  const signatureImage = await pdfDoc.embedPng(signatureBytes);
+  let signatureImage;
+  try {
+    signatureImage = await pdfDoc.embedPng(signatureBytes);
+  } catch (err) {
+    throw new Error(`Failed to embed signature image in PDF: ${err instanceof Error ? err.message : "unknown error"}`);
+  }
 
   const sigAspect = signatureImage.width / signatureImage.height;
   const sigDisplayHeight = 50;

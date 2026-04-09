@@ -12,6 +12,9 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Cell,
+  LineChart,
+  Line,
+  Legend,
 } from "recharts";
 
 interface Waiver {
@@ -22,6 +25,10 @@ interface Waiver {
   phone: string;
   team: string;
   date_of_birth: string;
+  cricclubs_id: string;
+  is_minor: boolean;
+  guardian_name: string;
+  guardian_relationship: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   ip_address: string;
@@ -35,6 +42,14 @@ interface Stats {
   totalWaivers: number;
   teamBreakdown: { team: string; count: number }[];
   recentSignings: any[];
+  ageBrackets: { bracket: string; count: number }[];
+  minorCount: number;
+  dailyTrend: { date: string; count: number }[];
+  threshold: number;
+  teamReadiness: { aboveThreshold: number; belowThreshold: number; noWaivers: number };
+  totalRegisteredTeams: number;
+  totalRegistrations: number;
+  multiTeamPlayers: number;
 }
 
 const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
@@ -67,9 +82,19 @@ function clearSession() {
 }
 
 export default function AdminPage() {
-  const stored = getStoredSession();
-  const [password, setPassword] = useState(stored.password);
-  const [authenticated, setAuthenticated] = useState(stored.authenticated);
+  const [password, setPassword] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  // Restore session from sessionStorage on client mount
+  useEffect(() => {
+    const stored = getStoredSession();
+    if (stored.authenticated) {
+      setPassword(stored.password);
+      setAuthenticated(true);
+    }
+    setSessionLoaded(true);
+  }, []);
   const [authError, setAuthError] = useState("");
   const [waivers, setWaivers] = useState<Waiver[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -78,7 +103,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleteModal, setDeleteModal] = useState<Waiver | null>(null);
-  const [view, setView] = useState<"dashboard" | "waivers" | "teams">("dashboard");
+  const [view, setView] = useState<"dashboard" | "waivers" | "teams" | "reports">("dashboard");
+  const [reportType, setReportType] = useState<string>("");
+  const [reportData, setReportData] = useState<any>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const [teams, setTeams] = useState<string[]>([]);
   const [newTeamName, setNewTeamName] = useState("");
   const [teamError, setTeamError] = useState("");
@@ -133,6 +161,20 @@ export default function AdminPage() {
       // ignore
     }
   }, [authHeader]);
+
+  const fetchReport = async (type: string) => {
+    setReportType(type);
+    setReportLoading(true);
+    setReportData(null);
+    try {
+      const res = await fetch(`/api/admin/reports?type=${type}`, { headers: authHeader() });
+      if (res.ok) setReportData(await res.json());
+    } catch {
+      // ignore
+    } finally {
+      setReportLoading(false);
+    }
+  };
 
   const handleExportCsv = async () => {
     try {
@@ -224,6 +266,11 @@ export default function AdminPage() {
   }, [authenticated, fetchStats, fetchWaivers, fetchTeams]);
 
   // Login screen
+  // Show nothing while checking session to avoid hydration mismatch
+  if (!sessionLoaded) {
+    return <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200" />;
+  }
+
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200 flex items-center justify-center px-4">
@@ -298,6 +345,16 @@ export default function AdminPage() {
               Teams
             </button>
             <button
+              onClick={() => setView("reports")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                view === "reports"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white/10 text-white hover:bg-white/20"
+              }`}
+            >
+              Reports
+            </button>
+            <button
               onClick={() => {
                 clearSession();
                 setAuthenticated(false);
@@ -316,39 +373,146 @@ export default function AdminPage() {
         {view === "dashboard" && stats && (
           <div className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                <p className="text-sm text-gray-500">Total Signed Waivers</p>
-                <p className="text-4xl font-bold text-[#1E2533] mt-1">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Unique Players</p>
+                <p className="text-3xl font-bold text-[#1E2533] mt-1">
                   {stats.totalWaivers}
                 </p>
+                <p className="text-xs text-gray-400 mt-0.5">waivers signed</p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                <p className="text-sm text-gray-500">Teams Represented</p>
-                <p className="text-4xl font-bold text-orange-600 mt-1">
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Team Registrations</p>
+                <p className="text-3xl font-bold text-blue-600 mt-1">
+                  {stats.totalRegistrations}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{stats.multiTeamPlayers} on 2+ teams</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Teams Active</p>
+                <p className="text-3xl font-bold text-orange-600 mt-1">
                   {stats.teamBreakdown.length}
+                  <span className="text-sm font-normal text-gray-400"> / {stats.totalRegisteredTeams}</span>
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-                <p className="text-sm text-gray-500">Total Registered Teams</p>
-                <p className="text-4xl font-bold text-green-600 mt-1">
-                  {teams.length}
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Roster Ready ({stats.threshold}+)</p>
+                <p className="text-3xl font-bold text-green-600 mt-1">
+                  {stats.teamReadiness.aboveThreshold}
                 </p>
+                <p className="text-xs text-gray-400 mt-0.5">{stats.teamReadiness.belowThreshold} below, {stats.teamReadiness.noWaivers} empty</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Minor Players</p>
+                <p className="text-3xl font-bold text-red-500 mt-1">
+                  {stats.minorCount}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">under 18</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+                <p className="text-xs text-gray-500">Multi-Team</p>
+                <p className="text-3xl font-bold text-purple-600 mt-1">
+                  {stats.multiTeamPlayers}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">players on 2+ teams</p>
               </div>
             </div>
 
-            {/* Waivers by Team Chart */}
+            {/* Daily Trend + Player Breakdown Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Daily Registration Trend */}
+              <div className="lg:col-span-2 bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h2 className="text-lg font-bold text-[#1E2533] mb-4">
+                  Registration Trend (Last 14 Days)
+                </h2>
+                {stats.dailyTrend.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No data yet</p>
+                ) : (
+                  <div className="w-full" style={{ height: 250 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={stats.dailyTrend} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          labelFormatter={(d) => new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          formatter={(value: any) => [`${value} waiver${value !== 1 ? "s" : ""}`, "Signed"]}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          dot={{ fill: "#f97316", r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Age Distribution Bar Chart */}
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h2 className="text-lg font-bold text-[#1E2533] mb-4">
+                  Player Age Distribution
+                </h2>
+                {stats.totalWaivers === 0 ? (
+                  <p className="text-gray-400 text-sm">No data yet</p>
+                ) : (
+                  <div className="w-full" style={{ height: 250 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stats.ageBrackets} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="bracket" tick={{ fontSize: 11 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          formatter={(value: any) => [`${value} player${value !== 1 ? "s" : ""}`, "Count"]}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb" }}
+                        />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={40}>
+                          {stats.ageBrackets.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                index === 0
+                                  ? "#ef4444" // Under 18 — red
+                                  : index === 1
+                                  ? "#f97316" // 18-30 — orange
+                                  : index === 2
+                                  ? "#1E2533" // 31-44 — dark
+                                  : index === 3
+                                  ? "#3b82f6" // 45-55 — blue
+                                  : "#22c55e" // 55+ — green
+                              }
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* Players per Team Chart */}
             <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-[#1E2533]">
-                  Waivers by Team
+                  Players per Team
                 </h2>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <span className="w-3 h-3 rounded-sm bg-orange-500 inline-block" /> Signed
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-8 h-0.5 bg-red-500 inline-block border-dashed" /> Min. 15
+                    <span className="w-8 h-0.5 bg-red-500 inline-block border-dashed" /> Avg. Threshold
                   </span>
                 </div>
               </div>
@@ -381,12 +545,12 @@ export default function AdminPage() {
                         }}
                       />
                       <ReferenceLine
-                        x={15}
+                        x={stats.threshold}
                         stroke="#ef4444"
                         strokeDasharray="6 4"
                         strokeWidth={2}
                         label={{
-                          value: "Min. 15",
+                          value: "Avg. Threshold",
                           position: "top",
                           fill: "#ef4444",
                           fontSize: 12,
@@ -397,7 +561,7 @@ export default function AdminPage() {
                         {stats.teamBreakdown.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={entry.count >= 15 ? "#22c55e" : "#f97316"}
+                            fill={entry.count >= stats.threshold ? "#22c55e" : "#f97316"}
                           />
                         ))}
                       </Bar>
@@ -631,6 +795,256 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Reports View */}
+        {view === "reports" && (
+          <div className="space-y-4">
+            {/* Report Selector */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+              <h2 className="text-lg font-bold text-[#1E2533] mb-4">League Reports</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                {[
+                  { type: "roster", label: "Roster Tracker", desc: "Team fill rates vs 15-player minimum" },
+                  { type: "emergency", label: "Emergency Contacts", desc: "Per-player emergency info by team" },
+                  { type: "minors", label: "Minor Players", desc: "All minors with guardian details" },
+                  { type: "cricclubs", label: "CricClubs IDs", desc: "Missing or duplicate player IDs" },
+                  { type: "multi-team", label: "Multi-Team Players", desc: "Players on more than one team" },
+                ].map((r) => (
+                  <button
+                    key={r.type}
+                    onClick={() => fetchReport(r.type)}
+                    className={`text-left p-4 rounded-lg border-2 transition-colors ${
+                      reportType === r.type
+                        ? "border-orange-500 bg-orange-50"
+                        : "border-gray-200 hover:border-orange-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <p className="text-sm font-bold text-gray-900">{r.label}</p>
+                    <p className="text-xs text-gray-500 mt-1">{r.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Report Content */}
+            {reportLoading && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center text-gray-400">
+                Loading report...
+              </div>
+            )}
+
+            {!reportLoading && reportData && reportType === "roster" && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-[#1E2533] mb-1">Team Roster Completion</h3>
+                <p className="text-xs text-gray-500 mb-4">Threshold: {reportData.threshold} players (based on league average, min. 11)</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 bg-gray-50">
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Team</th>
+                        <th className="text-center py-2 px-3 text-gray-500 font-semibold">Players</th>
+                        <th className="text-center py-2 px-3 text-gray-500 font-semibold">Needed</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Status</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Progress</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.roster.map((r: any) => (
+                        <tr key={r.team} className="border-b border-gray-100">
+                          <td className="py-2 px-3 font-medium text-gray-900">{r.team}</td>
+                          <td className="py-2 px-3 text-center font-bold text-gray-900">{r.count}</td>
+                          <td className="py-2 px-3 text-center text-gray-600">{r.needed > 0 ? r.needed : "-"}</td>
+                          <td className="py-2 px-3">
+                            {r.ready ? (
+                              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">Ready</span>
+                            ) : r.count > 0 ? (
+                              <span className="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">In Progress</span>
+                            ) : (
+                              <span className="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">No Players</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 w-32">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${r.ready ? "bg-green-500" : "bg-orange-500"}`}
+                                style={{ width: `${Math.min(100, (r.count / (reportData.threshold || 11)) * 100)}%` }}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {!reportLoading && reportData && reportType === "emergency" && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-[#1E2533] mb-4">Emergency Contacts</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200 bg-gray-50">
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Player</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Team</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Player Phone</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Emergency Contact</th>
+                        <th className="text-left py-2 px-3 text-gray-500 font-semibold">Emergency Phone</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.contacts.map((c: any, i: number) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="py-2 px-3 font-medium text-gray-900">{c.full_name}</td>
+                          <td className="py-2 px-3 text-gray-600">{c.team}</td>
+                          <td className="py-2 px-3 text-gray-600">{c.phone}</td>
+                          <td className="py-2 px-3 font-medium text-gray-900">{c.emergency_contact_name}</td>
+                          <td className="py-2 px-3 text-gray-600">{c.emergency_contact_phone}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {!reportLoading && reportData && reportType === "minors" && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-[#1E2533] mb-4">
+                  Minor Players ({reportData.minors.length})
+                </h3>
+                {reportData.minors.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No minor players registered</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200 bg-gray-50">
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Player</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Team</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">DOB</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Guardian</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Relationship</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.minors.map((m: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-900">{m.full_name}</td>
+                            <td className="py-2 px-3 text-gray-600">{m.team}</td>
+                            <td className="py-2 px-3 text-gray-600">{m.date_of_birth}</td>
+                            <td className="py-2 px-3 font-medium text-gray-900">{m.guardian_name}</td>
+                            <td className="py-2 px-3 text-gray-600">{m.guardian_relationship}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!reportLoading && reportData && reportType === "cricclubs" && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-[#1E2533] mb-4">CricClubs ID Validation</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-[#1E2533]">{reportData.total}</p>
+                    <p className="text-xs text-gray-500">Total Players</p>
+                  </div>
+                  <div className="bg-red-50 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-red-600">{reportData.missing.length}</p>
+                    <p className="text-xs text-gray-500">Missing IDs</p>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-4 text-center">
+                    <p className="text-2xl font-bold text-amber-600">{reportData.duplicates.length}</p>
+                    <p className="text-xs text-gray-500">Duplicate IDs</p>
+                  </div>
+                </div>
+                {reportData.missing.length > 0 && (
+                  <>
+                    <h4 className="text-sm font-bold text-red-700 mb-2">Players Missing CricClubs ID</h4>
+                    <div className="overflow-x-auto mb-4">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-red-50">
+                            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Name</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Email</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-semibold">Team</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.missing.map((m: any, i: number) => (
+                            <tr key={i} className="border-b border-gray-100">
+                              <td className="py-2 px-3 font-medium text-gray-900">{m.full_name}</td>
+                              <td className="py-2 px-3 text-gray-600">{m.email}</td>
+                              <td className="py-2 px-3 text-gray-600">{m.team}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+                {reportData.duplicates.length > 0 && (
+                  <>
+                    <h4 className="text-sm font-bold text-amber-700 mb-2">Duplicate CricClubs IDs</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {reportData.duplicates.map((d: any) => (
+                        <span key={d.cricclubs_id} className="bg-amber-100 text-amber-800 text-sm px-3 py-1 rounded-full">
+                          ID {d.cricclubs_id} ({d.count} players)
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!reportLoading && reportData && reportType === "multi-team" && (
+              <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <h3 className="text-lg font-bold text-[#1E2533] mb-4">
+                  Multi-Team Players ({reportData.players.length})
+                </h3>
+                {reportData.players.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No players registered on multiple teams</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200 bg-gray-50">
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Player</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Email</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Teams</th>
+                          <th className="text-left py-2 px-3 text-gray-500 font-semibold">Phone</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.players.map((p: any, i: number) => (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-medium text-gray-900">{p.full_name}</td>
+                            <td className="py-2 px-3 text-gray-600">{p.email}</td>
+                            <td className="py-2 px-3">
+                              <div className="flex flex-wrap gap-1">
+                                {p.team.split(",").map((t: string) => (
+                                  <span key={t.trim()} className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                                    {t.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-gray-600">{p.phone}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </main>

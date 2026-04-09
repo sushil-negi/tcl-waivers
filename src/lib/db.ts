@@ -58,6 +58,19 @@ async function initSchema() {
   await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS guardian_relationship TEXT`;
   await sql`ALTER TABLE waivers ADD COLUMN IF NOT EXISTS cricclubs_id TEXT`;
 
+  // Indexes on searchable columns
+  await sql`CREATE INDEX IF NOT EXISTS idx_waivers_cricclubs_id ON waivers(cricclubs_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_waivers_is_minor ON waivers(is_minor)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_waivers_team ON waivers(team)`;
+
+  // Ensure email uniqueness is case-insensitive
+  // Create a unique index on LOWER(email) — this is additive and won't break existing constraint
+  try {
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_waivers_email_lower ON waivers(LOWER(email))`;
+  } catch {
+    // Ignore if it already exists or conflicts with existing data
+  }
+
   // Seed default teams if table is empty
   const { rows } = await sql`SELECT COUNT(*) as c FROM teams`;
   if (parseInt(rows[0].c) === 0) {

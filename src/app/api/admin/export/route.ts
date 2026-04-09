@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-
-function checkAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === (process.env.ADMIN_PASSWORD || "admin123");
-}
+import { checkAuth } from "@/lib/admin-auth";
 
 function escapeCsv(value: any): string {
   if (value === null || value === undefined) return "";
@@ -18,8 +12,9 @@ function escapeCsv(value: any): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = checkAuth(request);
+  if (!auth.valid) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -28,7 +23,7 @@ export async function GET(request: NextRequest) {
         document_id, full_name, email, phone, date_of_birth,
         team, cricclubs_id, is_minor, guardian_name, guardian_relationship,
         emergency_contact_name, emergency_contact_phone,
-        ip_address, signed_at, signed_at_utc, drive_file_url
+        ip_address, signed_at, signed_at_utc, drive_file_url, created_at
       FROM waivers
       ORDER BY created_at DESC
     `;
@@ -50,6 +45,7 @@ export async function GET(request: NextRequest) {
       "Signed At (Local)",
       "Signed At (UTC)",
       "Drive File URL",
+      "Created At",
     ];
 
     const csvRows = rows.map((row) =>
@@ -70,6 +66,7 @@ export async function GET(request: NextRequest) {
         row.signed_at,
         row.signed_at_utc,
         row.drive_file_url,
+        row.created_at,
       ]
         .map(escapeCsv)
         .join(",")
