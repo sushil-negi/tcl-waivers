@@ -485,8 +485,10 @@ export default function AdminPage() {
                                   : index === 1
                                   ? "#f97316" // 18-30 — orange
                                   : index === 2
-                                  ? "#1E2533" // 31-44 — dark
+                                  ? "#1E2533" // 31-40 — dark
                                   : index === 3
+                                  ? "#8b5cf6" // 41-44 — purple
+                                  : index === 4
                                   ? "#3b82f6" // 45-55 — blue
                                   : "#22c55e" // 55+ — green
                               }

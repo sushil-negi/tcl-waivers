@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
       SELECT
         COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) < 18 THEN 1 ELSE 0 END), 0) as under_18,
         COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) BETWEEN 18 AND 30 THEN 1 ELSE 0 END), 0) as age_18_30,
-        COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) BETWEEN 31 AND 44 THEN 1 ELSE 0 END), 0) as age_31_44,
+        COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) BETWEEN 31 AND 40 THEN 1 ELSE 0 END), 0) as age_31_40,
+        COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) BETWEEN 41 AND 44 THEN 1 ELSE 0 END), 0) as age_41_44,
         COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) BETWEEN 45 AND 55 THEN 1 ELSE 0 END), 0) as age_45_55,
         COALESCE(SUM(CASE WHEN date_of_birth IS NOT NULL AND EXTRACT(YEAR FROM AGE(CURRENT_DATE, date_of_birth::date)) > 55 THEN 1 ELSE 0 END), 0) as above_55
       FROM waivers
@@ -90,7 +91,8 @@ export async function GET(request: NextRequest) {
       ageBrackets: [
         { bracket: "Under 18", count: parseInt(ageBrackets.rows[0].under_18) },
         { bracket: "18-30", count: parseInt(ageBrackets.rows[0].age_18_30) },
-        { bracket: "31-44", count: parseInt(ageBrackets.rows[0].age_31_44) },
+        { bracket: "31-40", count: parseInt(ageBrackets.rows[0].age_31_40) },
+        { bracket: "41-44", count: parseInt(ageBrackets.rows[0].age_41_44) },
         { bracket: "45-55", count: parseInt(ageBrackets.rows[0].age_45_55) },
         { bracket: "55+", count: parseInt(ageBrackets.rows[0].above_55) },
       ],
