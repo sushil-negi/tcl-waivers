@@ -669,6 +669,7 @@ export default function AdminPage() {
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">Name</th>
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">Email</th>
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">Team</th>
+                        <th className="text-left py-3 px-4 text-gray-500 font-semibold">CricClubs ID</th>
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">Phone</th>
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">Signed</th>
                         <th className="text-left py-3 px-4 text-gray-500 font-semibold">IP</th>
@@ -689,6 +690,7 @@ export default function AdminPage() {
                               {w.team || "—"}
                             </span>
                           </td>
+                          <td className="py-3 px-4 font-mono text-sm text-gray-900">{w.cricclubs_id || "—"}</td>
                           <td className="py-3 px-4 text-gray-600">{w.phone}</td>
                           <td className="py-3 px-4 text-gray-500 text-xs">{w.signed_at}</td>
                           <td className="py-3 px-4 font-mono text-xs text-gray-400">{w.ip_address}</td>
